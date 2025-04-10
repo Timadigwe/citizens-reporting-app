@@ -48,3 +48,52 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+# Citizens Reporting App
+
+## Features Implementation Plan
+
+### Phase 1: Basic Setup & Authentication
+- Firebase setup
+- User authentication (login/signup)
+- Basic navigation structure
+
+### Phase 2: Core Incident Reporting
+- Incident submission form
+- Image upload
+- Geolocation capture
+- Category selection
+
+### Phase 3: Incident Viewing & Listing
+- Browse all incidents
+- Filter by categories
+- View incident details
+- My incidents section
+
+### Phase 4: Real-time Features
+- Push notifications
+- Real-time incident updates
+- Map view of incidents
+
+## Project Structure
+```
+app/
+├── (auth)/
+│   ├── login.js
+│   └── signup.js
+├── (tabs)/
+│   ├── home.js
+│   ├── report.js
+│   ├── map.js
+│   └── profile.js
+├── components/
+│   ├── IncidentCard.js
+│   ├── CategoryFilter.js
+│   └── ImagePicker.js
+├── services/
+│   ├── firebase.js
+│   ├── notifications.js
+│   └── location.js
+└── utils/
+    └── helpers.js
+```
