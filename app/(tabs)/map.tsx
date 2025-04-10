@@ -18,9 +18,16 @@ interface Incident {
   created_at: string;
 }
 
+interface IncidentWithLocation extends Incident {
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
 export default function MapScreen() {
   const router = useRouter();
-  const [markers, setMarkers] = useState<Incident[]>([]);
+  const [markers, setMarkers] = useState<IncidentWithLocation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
@@ -33,10 +40,10 @@ export default function MapScreen() {
     try {
       setLoading(true);
       const data = await incidents.getAll();
-      setMarkers(data.filter((incident): incident is Incident & { location: NonNullable<Incident['location']> } => 
-        incident.location !== null && 
-        typeof incident.location?.latitude === 'number' && 
-        typeof incident.location?.longitude === 'number'
+      setMarkers(data.filter((incident): incident is IncidentWithLocation => 
+        incident.location !== undefined && 
+        'latitude' in incident.location && 
+        'longitude' in incident.location
       ));
     } catch (error) {
       console.error('Error loading incidents:', error);

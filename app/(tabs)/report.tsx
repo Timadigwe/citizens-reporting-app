@@ -2,18 +2,21 @@ import { useState } from 'react';
 import { 
   View, 
   TextInput, 
-  Button, 
   StyleSheet, 
   Text, 
+  TouchableOpacity,
   TouchableWithoutFeedback,
   Keyboard,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  ScrollView,
+  Alert
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { incidents } from '../services/supabase';
 import { Picker } from '@react-native-picker/picker';
+import { MaterialIcons } from '@expo/vector-icons';
 
 interface LocationCoords {
   latitude: number;
@@ -21,17 +24,17 @@ interface LocationCoords {
 }
 
 const CATEGORIES = [
-  { label: 'Select a category', value: '' },
-  { label: 'Accident', value: 'accident' },
-  { label: 'Infrastructure', value: 'infrastructure' },
-  { label: 'Safety', value: 'safety' },
-  { label: 'Environment', value: 'environment' },
-  { label: 'Noise', value: 'noise' },
-  { label: 'Vandalism', value: 'vandalism' },
-  { label: 'Health', value: 'health' },
-  { label: 'Animal', value: 'animal' },
-  { label: 'Emergency', value: 'emergency' },
-  { label: 'Other', value: 'other' },
+  { value: '', label: 'Select a category' },
+  { value: 'accident', label: 'Accident', icon: 'car-crash' },
+  { value: 'infrastructure', label: 'Infrastructure', icon: 'construction' },
+  { value: 'safety', label: 'Safety', icon: 'warning' },
+  { value: 'environment', label: 'Environment', icon: 'nature' },
+  { value: 'noise', label: 'Noise', icon: 'volume-up' },
+  { value: 'vandalism', label: 'Vandalism', icon: 'broken-image' },
+  { value: 'health', label: 'Health', icon: 'local-hospital' },
+  { value: 'animal', label: 'Animal', icon: 'pets' },
+  { value: 'emergency', label: 'Emergency', icon: 'emergency' },
+  { value: 'other', label: 'Other', icon: 'info' },
 ];
 
 export default function ReportScreen() {
@@ -42,6 +45,7 @@ export default function ReportScreen() {
   const [imageUrl, setImageUrl] = useState('');
   const [location, setLocation] = useState<LocationCoords | null>(null);
   const [locationAddress, setLocationAddress] = useState<string>('');
+  const [loading, setLoading] = useState(false);
 
   const clearForm = () => {
     setTitle('');
@@ -56,14 +60,13 @@ export default function ReportScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        alert('Permission to access location was denied');
+        Alert.alert('Permission Denied', 'Location access is required to report incidents.');
         return;
       }
 
       const locationResult = await Location.getCurrentPositionAsync({});
       setLocation(locationResult.coords);
 
-      // Get readable address
       const [address] = await Location.reverseGeocodeAsync({
         latitude: locationResult.coords.latitude,
         longitude: locationResult.coords.longitude,
@@ -79,18 +82,19 @@ export default function ReportScreen() {
         setLocationAddress(readableAddress);
       }
     } catch (error) {
-      alert('Error getting location');
+      Alert.alert('Error', 'Failed to get location. Please try again.');
       console.error(error);
     }
   };
 
   const handleSubmit = async () => {
-    try {
-      if (!title || !description || !category) {
-        alert('Please fill in all required fields');
-        return;
-      }
+    if (!title || !description || !category) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
 
+    try {
+      setLoading(true);
       await incidents.add({
         title,
         description,
@@ -99,10 +103,18 @@ export default function ReportScreen() {
         location: location || undefined,
       });
       
-      clearForm();
-      router.replace('/(tabs)');
+      Alert.alert(
+        'Success',
+        'Incident reported successfully',
+        [{ text: 'OK', onPress: () => {
+          clearForm();
+          router.replace('/(tabs)');
+        }}]
+      );
     } catch (error: any) {
-      alert('Error submitting incident: ' + (error.message || 'Unknown error'));
+      Alert.alert('Error', error.message || 'Failed to submit report');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -110,50 +122,94 @@ export default function ReportScreen() {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
+        style={styles.container}
       >
-        <View style={styles.container}>
-          <TextInput
-            placeholder="Title"
-            value={title}
-            onChangeText={setTitle}
-            style={styles.input}
-          />
-          <TextInput
-            placeholder="Description"
-            value={description}
-            onChangeText={setDescription}
-            style={[styles.input, styles.textArea]}
-            multiline
-          />
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={category}
-              onValueChange={(value) => setCategory(value)}
-              style={styles.picker}
-            >
-              {CATEGORIES.map((cat) => (
-                <Picker.Item 
-                  key={cat.value} 
-                  label={cat.label} 
-                  value={cat.value}
-                />
-              ))}
-            </Picker>
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Report Incident</Text>
+            <Text style={styles.headerSubtitle}>Help keep your community informed</Text>
           </View>
-          <TextInput
-            placeholder="Image URL (optional)"
-            value={imageUrl}
-            onChangeText={setImageUrl}
-            style={styles.input}
-            autoCapitalize="none"
-          />
-          <Button title="Get Location" onPress={getLocation} />
-          {locationAddress ? (
-            <Text style={styles.locationText}>📍 {locationAddress}</Text>
-          ) : null}
-          <Button title="Submit Report" onPress={handleSubmit} />
-        </View>
+
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Title *</Text>
+              <TextInput
+                placeholder="Brief title of the incident"
+                value={title}
+                onChangeText={setTitle}
+                style={styles.input}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description *</Text>
+              <TextInput
+                placeholder="Detailed description of what happened"
+                value={description}
+                onChangeText={setDescription}
+                style={[styles.input, styles.textArea]}
+                multiline
+                numberOfLines={4}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Category *</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={category}
+                  onValueChange={(value) => setCategory(value)}
+                  style={styles.picker}
+                >
+                  {CATEGORIES.map((cat) => (
+                    <Picker.Item 
+                      key={cat.value} 
+                      label={cat.label} 
+                      value={cat.value}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Image URL (optional)</Text>
+              <TextInput
+                placeholder="URL of related image"
+                value={imageUrl}
+                onChangeText={setImageUrl}
+                style={styles.input}
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Location</Text>
+              <TouchableOpacity 
+                style={styles.locationButton}
+                onPress={getLocation}
+              >
+                <MaterialIcons name="my-location" size={20} color="#007AFF" />
+                <Text style={styles.locationButtonText}>
+                  {location ? 'Update Location' : 'Get Current Location'}
+                </Text>
+              </TouchableOpacity>
+              {locationAddress ? (
+                <Text style={styles.locationText}>📍 {locationAddress}</Text>
+              ) : null}
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              <Text style={styles.submitButtonText}>
+                {loading ? 'Submitting...' : 'Submit Report'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -162,34 +218,92 @@ export default function ReportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  header: {
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#666',
+  },
+  form: {
+    padding: 16,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 8,
+    color: '#333',
   },
   input: {
+    backgroundColor: 'white',
     borderWidth: 1,
     borderColor: '#ddd',
-    padding: 10,
-    marginBottom: 16,
-    borderRadius: 5,
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 16,
   },
   textArea: {
     height: 100,
     textAlignVertical: 'top',
   },
-  locationText: {
-    marginVertical: 8,
-    color: '#666',
-    fontStyle: 'italic',
-  },
   pickerContainer: {
+    backgroundColor: 'white',
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 5,
-    marginBottom: 16,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   picker: {
-    backgroundColor: '#fff',
     marginHorizontal: -8,
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+  },
+  locationButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  locationText: {
+    marginTop: 8,
+    color: '#666',
+    fontSize: 14,
+  },
+  submitButton: {
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
+  submitButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 }); 

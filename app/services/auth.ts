@@ -29,4 +29,3 @@ export const auth = {
 };
 
 export default auth;
-export { auth }; 

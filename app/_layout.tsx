@@ -1,49 +1,29 @@
-import React from 'react';
-import { useEffect, useState } from 'react';
-import { Slot, Stack } from 'expo-router';
-import { auth } from './services/storage';
+import React, { useEffect, useState } from 'react';
+import { Stack, Slot } from 'expo-router';
+import { auth } from './services/supabase';
+import { ActivityIndicator, View } from 'react-native';
 
 export default function RootLayout() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    checkUser();
+    // Just check if we can access AsyncStorage
+    auth.getCurrentUser()
+      .finally(() => setInitializing(false));
   }, []);
 
-  const checkUser = async () => {
-    try {
-      const user = await auth.getCurrentUser();
-      setUser(user);
-    } catch (error) {
-      console.error('Error checking user:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return null; // Or a loading spinner
+  if (initializing) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
 
   return (
-    <>
-      {user ? (
-        // Show main app layout when user is authenticated
-        <Slot />
-      ) : (
-        // Show auth screens when user is not authenticated
-        <Stack>
-          <Stack.Screen 
-            name="(auth)/login" 
-            options={{ headerShown: false }} 
-          />
-          <Stack.Screen 
-            name="(auth)/signup" 
-            options={{ headerShown: false }} 
-          />
-        </Stack>
-      )}
-    </>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    </Stack>
   );
 }

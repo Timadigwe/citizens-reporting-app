@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, FlatList, StyleSheet, ActivityIndicator, Text, Button } from 'react-native';
+import { View, FlatList, StyleSheet, ActivityIndicator, Text, Button, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { incidents } from '../services/supabase';
 import IncidentCard from '../components/IncidentCard';
@@ -61,37 +61,47 @@ export default function HomeScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Error: {error}</Text>
-        <Button title="Retry" onPress={loadIncidents} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Incidents</Text>
+        <Text style={styles.headerSubtitle}>Recent reports in your area</Text>
+      </View>
+
       <CategoryFilter
         selectedCategory={selectedCategory}
         onSelectCategory={handleCategoryChange}
       />
-      <FlatList
-        data={filteredIncidents}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <IncidentCard incident={item} />}
-        contentContainerStyle={styles.list}
-        refreshing={loading}
-        onRefresh={loadIncidents}
-      />
+
+      {loading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      ) : error ? (
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>Error: {error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={loadIncidents}
+          >
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredIncidents}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <IncidentCard incident={item} />}
+          contentContainerStyle={styles.list}
+          refreshing={loading}
+          onRefresh={loadIncidents}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No incidents found</Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -99,7 +109,22 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f9fa',
+  },
+  header: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#666',
   },
   centerContainer: {
     flex: 1,
@@ -111,7 +136,26 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   errorText: {
-    color: 'red',
+    color: '#dc3545',
     marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    color: '#666',
+    fontSize: 16,
   },
 });
